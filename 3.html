@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>แสดงสถานะ</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    h2 { margin-bottom: 20px; }
+    .gauge {
+      width: 400px;
+      height: 200px;
+      position: relative;
+      margin: 0 auto;
+    }
+    .arc {
+      width: 100%;
+      height: 100%;
+      border-top: 14px solid lightgray;
+      border-radius: 200px 200px 0 0;
+      position: absolute;
+      top: 0; left: 0;
+      z-index: 1;
+    }
+    .needle {
+      width: 6px;
+      height: 180px;
+      background: red;
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform-origin: bottom center;
+      z-index: 3;
+      transition: transform 0.5s ease-in-out;
+    }
+    .value-display {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      font-weight: bold;
+      z-index: 4;
+      color: #333;
+    }
+    input[type="range"] {
+      width: 400px;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>เครื่องวัดสถานะ</h2>
+
+  <div class="gauge">
+    <div class="arc"></div>
+    <div class="needle" id="needle"></div>
+    <div class="value-display" id="valueDisplay">0</div>
+  </div>
+
+  <input type="range" min="0" max="100" value="0" id="inputRange" />
+  <p>ค่าที่รับเข้า: <span id="inputValue">0</span></p>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // ✅ Config จริงของคุณ (จาก myiot-3663d)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwcwTWmrMMIqDYQiJpAWPmEfydfl26F3M",
+      authDomain: "myiot-3663d.firebaseapp.com",
+      databaseURL: "https://myiot-3663d-default-rtdb.firebaseio.com",
+      projectId: "myiot-3663d",
+      storageBucket: "myiot-3663d.appspot.com",
+      messagingSenderId: "961114169689",
+      appId: "1:961114169689:web:1b101e5d2badb2dd14ac48",
+      measurementId: "G-S3HJMVKDSV"
+    };
+
+    // ✅ เชื่อม Firebase Firestore
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ✅ DOM Elements
+    const needle = document.getElementById('needle');
+    const valueDisplay = document.getElementById('valueDisplay');
+    const inputValue = document.getElementById('inputValue');
+    const inputRange = document.getElementById('inputRange');
+
+    // ✅ ฟังก์ชันอัปเดตเข็ม
+    function updateGauge(value) {
+      const angle = (value / 100) * 180 - 90;
+      needle.style.transform = `rotate(${angle}deg)`;
+      valueDisplay.textContent = value;
+      inputValue.textContent = value;
+    }
+
+    // ✅ Firestore document: status/value
+    const docRef = db.collection("device2").doc("device2");
+
+    // ✅ ดึงค่าจาก Firestore แบบ realtime
+    docRef.onSnapshot((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        if (data && typeof data.status === "number") {
+          updateGauge(data.status);
+          inputRange.value = data.status;
+        }
+      }
+    });
+
+    // ✅ เมื่อเลื่อน slider แล้วเขียนค่ากลับ Firestore
+    inputRange.addEventListener("input", () => {
+      const val = Number(inputRange.value);
+      updateGauge(val);
+      docRef.set({ status: val })  // ต้องใช้ฟิลด์ชื่อ status ทั้งตอนอ่าน/เขียน
+        .catch(error => console.error("Error writing document: ", error));
+    });
+  </script>
+
+</body>
+</html>
